@@ -201,6 +201,7 @@ resource "aws_instance" "frontend_ec2" {
   })
 }
 
+# Frontend server launch template
 resource "aws_eip_association" "frontend_eip_association" {
   allocation_id = aws_eip.frontend_eip.id
   instance_id   = aws_instance.frontend_ec2.id
@@ -224,3 +225,78 @@ resource "aws_instance" "backend_ec2" {
 	backend_env = file("keys/backend_env.txt")
   })
 }
+
+resource "aws_launch_template" "frontend_lt" {
+  name_prefix = "frontend-"
+  image_id = var.frontend_ami
+  instance_type = var.frontend_instance_type
+  vpc_security_group_ids = [aws_security_group.frontend_sg.id]
+  key_name = var.key_name
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = var.frontend_lt
+    }
+  }
+
+  user_data = templatefile("${path.module}/scripts/frontend.sh", {
+    git_private_key = file("keys/frontend_keys.txt")
+	backend_ssh_key = replace(file("keys/gitmate.pem"), "\r\n", "\n")
+  })
+}
+
+# Frontend AutoScaler
+resource "aws_autoscaling_group" "frontend_asg" {
+    name = var.frontend_asg
+    min_size = 1
+    max_size = 3
+    desired_capacity = 1
+
+    vpc_zone_identifier = [aws_subnet.public.id]
+
+    launch_template {
+        id = aws_launch_template.frontend_lt.id
+        version = "$Latest"
+    }
+}
+
+
+# Backend launch template
+resource "aws_launch_template" "backend_lt" {
+  name_prefix = "backend-"
+  image_id = var.backend_ami
+  instance_type = var.backend_instance_type
+  vpc_security_group_ids = [aws_security_group.backend_sg.id]
+  key_name = var.key_name
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = var.backend_lt
+    }
+  }
+
+  user_data = templatefile("${path.module}/scripts/backend.sh", {
+    git_private_key = file("keys/backend_keys.txt")
+	backend_env = file("keys/backend_env.txt")
+  })
+}
+
+# Backend AutoScaler
+resource "aws_autoscaling_group" "backend_asg" {
+    name = var.backend_asg
+    min_size = 1
+    max_size = 3
+    desired_capacity = 1
+
+    vpc_zone_identifier = [aws_subnet.private.id]
+
+    launch_template {
+        id = aws_launch_template.backend_lt.id
+        version = "$Latest"
+    }
+}
+

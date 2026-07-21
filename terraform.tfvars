@@ -30,4 +30,7 @@ key_name = "gitmate"
 frontend_eip_tag_name = "frontend-eip"
 
 backend_private_ip = "10.0.2.10"
-
+frontend_lt = "frontend-lt"
+frontend_asg = "frontend-asg"
+backend_lt = "backend-lt"
+backend_asg = "backend-asg"

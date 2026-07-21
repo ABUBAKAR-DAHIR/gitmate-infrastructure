@@ -132,3 +132,27 @@ variable "backend_private_ip" {
   type = string
   description = "Backend private IP address"
 }
+
+variable "frontend_lt" {
+  type = string
+  description = "Frontend Launch template"
+}
+
+variable "frontend_asg" {
+  type = string
+  description = "Frontend Autoscaler Group"
+}
+
+variable "backend_lt" {
+  type = string
+  description = "Backend Launch template"
+}
+
+variable "backend_asg" {
+  type = string
+  description = "Backend Autoscaler Group"
+}
+
+
+
+
