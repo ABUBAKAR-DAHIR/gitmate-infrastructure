@@ -13,25 +13,66 @@ variable "vpc_tag_name" {
   description = "VPC Tag name"
 }
 
-variable "public_subnet_cidr" {
+variable "public_subnet_a_cidr" {
   type        = string
-  description = "Public subnet CIDR block"
+  description = "Public subnet A CIDR block"
 }
 
-variable "public_subnet_tag_name" {
+variable "public_subnet_b_cidr" {
   type        = string
-  description = "Public subnet Tag name"
+  description = "Public subnet B CIDR block"
 }
 
-variable "private_subnet_cidr" {
+variable "public_subnet_a_az" {
   type        = string
-  description = "Private subnet CIDR block"
+  description = "Public subnet A Availability Zone"
 }
 
-variable "private_subnet_tag_name" {
+variable "public_subnet_b_az" {
   type        = string
-  description = "Private subnet Tag name"
+  description = "Public subnet B Availability Zone"
 }
+
+variable "public_subnet_a_tag_name" {
+  type        = string
+  description = "Public subnet A Tag name"
+}
+
+variable "public_subnet_b_tag_name" {
+  type        = string
+  description = "Public subnet B Tag name"
+}
+
+variable "private_subnet_a_cidr" {
+  type        = string
+  description = "Private subnet A CIDR block"
+}
+
+variable "private_subnet_b_cidr" {
+  type        = string
+  description = "Private subnet B CIDR block"
+}
+
+variable "private_subnet_a_tag_name" {
+  type        = string
+  description = "Private subnet A Tag name"
+}
+
+variable "private_subnet_b_tag_name" {
+  type        = string
+  description = "Private subnet B Tag name"
+}
+
+variable "private_subnet_a_az" {
+  type        = string
+  description = "private subnet A Availability Zone"
+}
+
+variable "private_subnet_b_az" {
+  type        = string
+  description = "private subnet B Availability Zone"
+}
+
 
 variable "igw_tag_name" {
   type        = string
@@ -51,6 +92,10 @@ variable "public_cidr_ipv6" {
 variable "frontend_sg_tag_name" {
   type        = string
   description = "Frontend SG Tag Name"
+}
+variable "frontend_alb_sg_tag_name" {
+  type        = string
+  description = "Frontend ALB SG Tag Name"
 }
 
 variable "backend_sg_tag_name" {
@@ -153,6 +198,27 @@ variable "backend_asg" {
   description = "Backend Autoscaler Group"
 }
 
+variable "frontend_tg" {
+  type = string
+  description = "Frontend Target group"
+}
 
+variable "frontend_alb" {
+  type = string
+  description = "Frontend ALB"
+}
 
+variable "backend_alb_sg_tag_name" {
+  type        = string
+  description = "Backend ALB SG Tag Name"
+}
 
+variable "backend_tg" {
+  type = string
+  description = "Backend TG"
+}
+
+variable "backend_alb" {
+  type = string
+  description = "Backend ALB"
+}

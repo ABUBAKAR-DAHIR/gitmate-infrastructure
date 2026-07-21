@@ -1,10 +1,20 @@
 aws_region              = "ap-south-1"
 vpc_cidr                = "10.0.0.0/16"
 vpc_tag_name            = "gitmate-vpc"
-public_subnet_cidr      = "10.0.1.0/24"
-public_subnet_tag_name  = "public-subnet"
-private_subnet_cidr     = "10.0.2.0/24"
-private_subnet_tag_name = "private-subnet"
+public_subnet_a_cidr      = "10.0.1.0/24"
+public_subnet_a_tag_name  = "public-subnet-a"
+public_subnet_b_cidr      = "10.0.2.0/24"
+public_subnet_b_tag_name  = "public-subnet-b"
+public_subnet_a_az = "ap-south-1a"
+public_subnet_b_az = "ap-south-1b"
+
+private_subnet_a_cidr     = "10.0.3.0/24"
+private_subnet_a_tag_name = "private-subnet-a"
+private_subnet_b_cidr     = "10.0.4.0/24"
+private_subnet_b_tag_name = "private-subnet-b"
+private_subnet_a_az = "ap-south-1a"
+private_subnet_b_az = "ap-south-1b"
+
 igw_tag_name            = "igw"
 public_cidr_ipv4        = "0.0.0.0/0"
 public_cidr_ipv6        = "::/0"
@@ -32,5 +42,16 @@ frontend_eip_tag_name = "frontend-eip"
 backend_private_ip = "10.0.2.10"
 frontend_lt = "frontend-lt"
 frontend_asg = "frontend-asg"
+frontend_alb_sg_tag_name = "frontend-alb-sg"
 backend_lt = "backend-lt"
 backend_asg = "backend-asg"
+
+frontend_tg = "frontend-tg"
+frontend_alb = "frontend-alb"
+
+backend_alb_sg_tag_name = "backend-alb-sg"
+backend_tg = "backend-tg"
+backend_alb = "backend-alb"
+
+
+
