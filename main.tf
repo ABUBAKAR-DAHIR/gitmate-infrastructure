@@ -16,85 +16,6 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-# Frontend Security Group
-resource "aws_security_group" "frontend_sg" {
-  name        = "Public SG"
-  description = "Allow TLS inbound traffic and all outbound traffic"
-  vpc_id      = aws_vpc.vpc.id
-
-  tags = {
-    Name = var.frontend_sg_tag_name
-  }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "https_ipv4" {
-  security_group_id = aws_security_group.frontend_sg.id
-  referenced_security_group_id = aws_security_group.frontend_alb_sg.id
-
-  cidr_ipv4         = var.public_cidr_ipv4
-  from_port         = 443
-  ip_protocol       = "tcp"
-  to_port           = 443
-}
-
-resource "aws_vpc_security_group_ingress_rule" "http_ipv4" {
-  security_group_id = aws_security_group.frontend_sg.id
-  referenced_security_group_id = aws_security_group.frontend_alb_sg.id
-
-  cidr_ipv4         = var.public_cidr_ipv4
-  from_port         = 80
-  ip_protocol       = "tcp"
-  to_port           = 80
-}
-
-resource "aws_vpc_security_group_ingress_rule" "ssh_ipv4" {
-  security_group_id = aws_security_group.frontend_sg.id
-  cidr_ipv4         = var.public_cidr_ipv4
-  from_port         = 22
-  ip_protocol       = "tcp"
-  to_port           = 22
-}
-
-resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
-  security_group_id = aws_security_group.frontend_sg.id
-  cidr_ipv4         = var.public_cidr_ipv4
-  ip_protocol       = "-1" # semantically equivalent to all ports
-}
-
-
-# Backend Security Group
-resource "aws_security_group" "backend_sg" {
-  name        = "Backend SG"
-  description = "Allow TLS inbound traffic only from the frontend and all outbound traffic"
-  vpc_id      = aws_vpc.vpc.id
-
-  tags = {
-    Name = var.backend_sg_tag_name
-  }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "backend_ipv4" {
-  security_group_id            = aws_security_group.backend_sg.id
-  referenced_security_group_id = aws_security_group.frontend_sg.id
-  from_port                    = 5000
-  ip_protocol                  = "tcp"
-  to_port                      = 5000
-}
-
-resource "aws_vpc_security_group_ingress_rule" "backend_ssh" {
-  security_group_id            = aws_security_group.backend_sg.id
-  referenced_security_group_id = aws_security_group.frontend_sg.id
-  from_port                    = 22
-  ip_protocol                  = "tcp"
-  to_port                      = 22
-}
-
-resource "aws_vpc_security_group_egress_rule" "backend_all_outbound" {
-  security_group_id = aws_security_group.backend_sg.id
-  cidr_ipv4         = var.public_cidr_ipv4
-  ip_protocol       = "-1"
-}
-
 # Public Route table
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.vpc.id
@@ -114,6 +35,7 @@ resource "aws_subnet" "public_a" {
   vpc_id     = aws_vpc.vpc.id
   cidr_block = var.public_subnet_a_cidr
   availability_zone = var.public_subnet_a_az
+  map_public_ip_on_launch = true
 
   tags = {
     Name = var.public_subnet_a_tag_name
@@ -125,6 +47,8 @@ resource "aws_subnet" "public_b" {
   vpc_id     = aws_vpc.vpc.id
   cidr_block = var.public_subnet_b_cidr
   availability_zone = var.public_subnet_b_az
+
+  map_public_ip_on_launch = true
 
   tags = {
     Name = var.public_subnet_b_tag_name
@@ -202,70 +126,100 @@ resource "aws_route_table" "private_rt" {
   }
 }
 
-# Associate private subnet with public route table
+# Associate private subnet A with private route table
 resource "aws_route_table_association" "private_a_association" {
   subnet_id      = aws_subnet.private_a.id
   route_table_id = aws_route_table.private_rt.id
 }
 
-# Associate private subnet with public route table
+# Associate private subnet B with private route table
 resource "aws_route_table_association" "private_b_association" {
   subnet_id      = aws_subnet.private_b.id
   route_table_id = aws_route_table.private_rt.id
 }
 
-# # Elastic IP address for the Frontend EC2 server we are going to create
-# resource "aws_eip" "frontend_eip" {
-#   domain = "vpc"
 
-#   tags = {
-#     Name = var.frontend_eip_tag_name
-#   }
+# Frontend Security Group
+resource "aws_security_group" "frontend_sg" {
+  name        = "Public SG"
+  description = "Allow TLS inbound traffic and all outbound traffic"
+  vpc_id      = aws_vpc.vpc.id
+
+  tags = {
+    Name = var.frontend_sg_tag_name
+  }
+}
+
+# resource "aws_vpc_security_group_ingress_rule" "https_ipv4" {
+#   security_group_id = aws_security_group.frontend_sg.id
+#   referenced_security_group_id = aws_security_group.frontend_alb_sg.id
+
+#   cidr_ipv4         = var.public_cidr_ipv4
+#   from_port         = 443
+#   ip_protocol       = "tcp"
+#   to_port           = 443
 # }
 
-# # Frontend EC2 Server
-# resource "aws_instance" "frontend_ec2" {
-#   ami                    = var.frontend_ami
-#   instance_type          = var.frontend_instance_type
-#   subnet_id              = aws_subnet.public.id
-#   vpc_security_group_ids = [aws_security_group.frontend_sg.id]
-#   key_name               = var.key_name
+resource "aws_vpc_security_group_ingress_rule" "from_frontend_alb" {
+  security_group_id = aws_security_group.frontend_sg.id
+  referenced_security_group_id = aws_security_group.frontend_alb_sg.id
 
-#   tags = {
-#     Name = var.frontend_tag_name
-#   }
+#   cidr_ipv4         = var.public_cidr_ipv4
+  from_port         = 80
+  ip_protocol       = "tcp"
+  to_port           = 80
+}
 
-#   user_data = templatefile("${path.module}/scripts/frontend.sh", {
-#     git_private_key = file("keys/frontend_keys.txt")
-# 	backend_ssh_key = replace(file("keys/gitmate.pem"), "\r\n", "\n")
-#   })
-# }
+resource "aws_vpc_security_group_ingress_rule" "ssh_ipv4" {
+  security_group_id = aws_security_group.frontend_sg.id
+  cidr_ipv4         = var.public_cidr_ipv4
+  from_port         = 22
+  ip_protocol       = "tcp"
+  to_port           = 22
+}
 
-# # Frontend server launch template
-# resource "aws_eip_association" "frontend_eip_association" {
-#   allocation_id = aws_eip.frontend_eip.id
-#   instance_id   = aws_instance.frontend_ec2.id
-# }
+resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
+  security_group_id = aws_security_group.frontend_sg.id
+  cidr_ipv4         = var.public_cidr_ipv4
+  ip_protocol       = "-1" # semantically equivalent to all ports
+}
 
-# # Backend EC2 Server
-# resource "aws_instance" "backend_ec2" {
-#   ami                    = var.backend_ami
-#   instance_type          = var.backend_instance_type
-#   subnet_id              = aws_subnet.private.id
-#   vpc_security_group_ids = [aws_security_group.backend_sg.id]
-#   key_name               = var.key_name
-#   private_ip = var.backend_private_ip
 
-#   tags = {
-#     Name = var.backend_tag_name
-#   }
+# Backend Security Group
+resource "aws_security_group" "backend_sg" {
+  name        = "Backend SG"
+  description = "Allow TLS inbound traffic only from the frontend and all outbound traffic"
+  vpc_id      = aws_vpc.vpc.id
 
-#   user_data = templatefile("${path.module}/scripts/backend.sh", {
-#     git_private_key = file("keys/backend_keys.txt")
-# 	backend_env = file("keys/backend_env.txt")
-#   })
-# }
+  tags = {
+    Name = var.backend_sg_tag_name
+  }
+}
 
+resource "aws_vpc_security_group_ingress_rule" "backend_ipv4" {
+  security_group_id            = aws_security_group.backend_sg.id
+  referenced_security_group_id = aws_security_group.backend_alb_sg.id
+  from_port                    = 5000
+  ip_protocol                  = "tcp"
+  to_port                      = 5000
+}
+
+resource "aws_vpc_security_group_ingress_rule" "backend_ssh" {
+  security_group_id            = aws_security_group.backend_sg.id
+  referenced_security_group_id = aws_security_group.frontend_sg.id
+  from_port                    = 22
+  ip_protocol                  = "tcp"
+  to_port                      = 22
+}
+
+resource "aws_vpc_security_group_egress_rule" "backend_all_outbound" {
+  security_group_id = aws_security_group.backend_sg.id
+  cidr_ipv4         = var.public_cidr_ipv4
+  ip_protocol       = "-1"
+}
+
+
+# Frontend launch template
 resource "aws_launch_template" "frontend_lt" {
   name_prefix = "frontend-"
   image_id = var.frontend_ami
@@ -285,6 +239,25 @@ resource "aws_launch_template" "frontend_lt" {
     git_private_key = file("keys/frontend_keys.txt")
 	backend_ssh_key = replace(file("keys/gitmate.pem"), "\r\n", "\n")
   })
+}
+
+# Frontend Target group
+resource "aws_lb_target_group" "frontend_tg" {
+  name     = var.frontend_tg
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.vpc.id
+
+#   health_check {
+#     enabled             = true
+#     path                = "/health"
+#     protocol            = "HTTP"
+#     matcher             = "200-399"
+#   }
+
+  tags = {
+    Name = var.frontend_tg
+  }
 }
 
 # Frontend AutoScaler
@@ -310,47 +283,6 @@ resource "aws_autoscaling_group" "frontend_asg" {
 }
 
 
-# Backend launch template
-resource "aws_launch_template" "backend_lt" {
-  name_prefix = "backend-"
-  image_id = var.backend_ami
-  instance_type = var.backend_instance_type
-  vpc_security_group_ids = [aws_security_group.backend_sg.id]
-  key_name = var.key_name
-
-  tag_specifications {
-    resource_type = "instance"
-
-    tags = {
-      Name = var.backend_lt
-    }
-  }
-
-  user_data = templatefile("${path.module}/scripts/backend.sh", {
-    git_private_key = file("keys/backend_keys.txt")
-	backend_env = file("keys/backend_env.txt")
-  })
-}
-
-# Backend AutoScaler
-resource "aws_autoscaling_group" "backend_asg" {
-    name = var.backend_asg
-    min_size = 1
-    max_size = 3
-    desired_capacity = 1
-
-    vpc_zone_identifier = [
-        aws_subnet.private_a.id,
-        aws_subnet.private_b.id
-    ]
-
-    launch_template {
-        id = aws_launch_template.backend_lt.id
-        version = "$Latest"
-    }
-}
-
-
 # Frontend ALB Security Group
 resource "aws_security_group" "frontend_alb_sg" {
   name        = "Frontend Public SG"
@@ -362,7 +294,7 @@ resource "aws_security_group" "frontend_alb_sg" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "alb_https_ipv4" {
+resource "aws_vpc_security_group_ingress_rule" "alb_frontend_https_ipv4" {
   security_group_id = aws_security_group.frontend_alb_sg.id
   cidr_ipv4         = var.public_cidr_ipv4
   from_port         = 443
@@ -370,7 +302,7 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https_ipv4" {
   to_port           = 443
 }
 
-resource "aws_vpc_security_group_ingress_rule" "alb_http_ipv4" {
+resource "aws_vpc_security_group_ingress_rule" "alb_frontend_http_ipv4" {
   security_group_id = aws_security_group.frontend_alb_sg.id
   cidr_ipv4         = var.public_cidr_ipv4
   from_port         = 80
@@ -378,30 +310,12 @@ resource "aws_vpc_security_group_ingress_rule" "alb_http_ipv4" {
   to_port           = 80
 }
 
-resource "aws_vpc_security_group_egress_rule" "alb_allow_all_traffic_ipv4" {
+resource "aws_vpc_security_group_egress_rule" "alb_frontend_allow_all_traffic_ipv4" {
   security_group_id = aws_security_group.frontend_alb_sg.id
   cidr_ipv4         = var.public_cidr_ipv4
   ip_protocol       = "-1" # semantically equivalent to all ports
 }
 
-# Target group
-resource "aws_lb_target_group" "frontend_tg" {
-  name     = var.frontend_tg
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.vpc.id
-
-  health_check {
-    enabled             = true
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200-399"
-  }
-
-  tags = {
-    Name = var.frontend_tg
-  }
-}
 
 # Frontend ALB
 resource "aws_lb" "frontend_alb" {
@@ -409,7 +323,10 @@ resource "aws_lb" "frontend_alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.frontend_alb_sg.id]
-  subnets            = [for subnet in aws_subnet.public : subnet.id]
+  subnets            = [
+    aws_subnet.public_a.id,
+    aws_subnet.public_b.id
+  ]
 
   enable_deletion_protection = true
 
@@ -432,7 +349,71 @@ resource "aws_lb_listener" "frontend_alb_listener" {
 }
 
 
-//
+
+# Backend launch template
+resource "aws_launch_template" "backend_lt" {
+  name_prefix = "backend-"
+  image_id = var.backend_ami
+  instance_type = var.backend_instance_type
+  vpc_security_group_ids = [aws_security_group.backend_sg.id]
+  key_name = var.key_name
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = var.backend_lt
+    }
+  }
+
+  user_data = templatefile("${path.module}/scripts/backend.sh", {
+    git_private_key = file("keys/backend_keys.txt")
+	backend_env = file("keys/backend_env.txt")
+  })
+}
+
+
+# Backend Target group
+resource "aws_lb_target_group" "backend_tg" {
+  name     = var.backend_tg
+  port     = 5000
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.vpc.id
+
+  health_check {
+    enabled             = true
+    path                = "/api"
+    protocol            = "HTTP"
+    matcher             = "200-399"
+  }
+
+  tags = {
+    Name = var.backend_tg
+  }
+}
+
+# Backend AutoScaler
+resource "aws_autoscaling_group" "backend_asg" {
+    name = var.backend_asg
+    min_size = 1
+    max_size = 3
+    desired_capacity = 1
+
+    target_group_arns = [
+        aws_lb_target_group.backend_tg.arn
+    ]
+
+    vpc_zone_identifier = [
+        aws_subnet.private_a.id,
+        aws_subnet.private_b.id
+    ]
+
+    launch_template {
+        id = aws_launch_template.backend_lt.id
+        version = "$Latest"
+    }
+}
+
 
 # Backend ALB Security Group
 resource "aws_security_group" "backend_alb_sg" {
@@ -447,19 +428,19 @@ resource "aws_security_group" "backend_alb_sg" {
 
 resource "aws_vpc_security_group_ingress_rule" "alb_backend_ipv4" {
   security_group_id            = aws_security_group.backend_alb_sg.id
-  referenced_security_group_id = aws_security_group.frontend_alb_sg.id
-  from_port                    = 5000
+  referenced_security_group_id = aws_security_group.frontend_sg.id
+  from_port                    = 80
   ip_protocol                  = "tcp"
-  to_port                      = 5000
+  to_port                      = 80
 }
 
-resource "aws_vpc_security_group_ingress_rule" "alb_backend_ssh" {
-  security_group_id            = aws_security_group.backend_alb_sg.id
-  referenced_security_group_id = aws_security_group.frontend_alb_sg.id
-  from_port                    = 22
-  ip_protocol                  = "tcp"
-  to_port                      = 22
-}
+# resource "aws_vpc_security_group_ingress_rule" "alb_backend_ssh" {
+#   security_group_id            = aws_security_group.backend_alb_sg.id
+#   referenced_security_group_id = aws_security_group.frontend_alb_sg.id
+#   from_port                    = 22
+#   ip_protocol                  = "tcp"
+#   to_port                      = 22
+# }
 
 resource "aws_vpc_security_group_egress_rule" "alb_backend_all_outbound" {
   security_group_id = aws_security_group.backend_alb_sg.id
@@ -467,33 +448,16 @@ resource "aws_vpc_security_group_egress_rule" "alb_backend_all_outbound" {
   ip_protocol       = "-1"
 }
 
-# Target group
-resource "aws_lb_target_group" "backend_tg" {
-  name     = var.backend_tg
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.vpc.id
-
-  health_check {
-    enabled             = true
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200-399"
-  }
-
-  tags = {
-    Name = var.backend_tg
-  }
-}
-
-
 # Backend ALB
 resource "aws_lb" "backend_alb" {
   name               = var.backend_alb
   internal           = true
   load_balancer_type = "application"
   security_groups    = [aws_security_group.backend_alb_sg.id]
-  subnets            = [for subnet in aws_subnet.public : subnet.id]
+  subnets            = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
 
   enable_deletion_protection = true
 
@@ -504,8 +468,8 @@ resource "aws_lb" "backend_alb" {
 }
 
 # Backend ALB listener
-resource "aws_lb_listener" "frontend_alb_listener" {
-  load_balancer_arn = aws_lb.frontend_alb.arn
+resource "aws_lb_listener" "backend_alb_listener" {
+  load_balancer_arn = aws_lb.backend_alb.arn
   port              = "80"
   protocol          = "HTTP"
 
@@ -514,3 +478,4 @@ resource "aws_lb_listener" "frontend_alb_listener" {
     target_group_arn = aws_lb_target_group.backend_tg.arn
   }
 }
+
