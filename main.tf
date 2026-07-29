@@ -235,10 +235,11 @@ resource "aws_launch_template" "frontend_lt" {
     }
   }
 
-  user_data = templatefile("${path.module}/scripts/frontend.sh", {
+  user_data = base64encode(templatefile("${path.module}/scripts/frontend.sh", {
     git_private_key = file("keys/frontend_keys.txt")
 	backend_ssh_key = replace(file("keys/gitmate.pem"), "\r\n", "\n")
-  })
+    backend_alb_domain = aws_lb.backend_alb.dns_name
+  }))
 }
 
 # Frontend Target group
@@ -248,12 +249,16 @@ resource "aws_lb_target_group" "frontend_tg" {
   protocol = "HTTP"
   vpc_id   = aws_vpc.vpc.id
 
-#   health_check {
-#     enabled             = true
-#     path                = "/health"
-#     protocol            = "HTTP"
-#     matcher             = "200-399"
-#   }
+  health_check {
+    enabled             = true
+    path                = "/health"
+    protocol            = "HTTP"
+    matcher             = "200-399"
+    interval = 10
+    healthy_threshold = 2
+    unhealthy_threshold = 2
+    timeout = 5
+  }
 
   tags = {
     Name = var.frontend_tg
@@ -266,6 +271,9 @@ resource "aws_autoscaling_group" "frontend_asg" {
     min_size = 1
     max_size = 3
     desired_capacity = 1
+
+    health_check_type = "ELB"
+    health_check_grace_period = 120
 
     target_group_arns = [
         aws_lb_target_group.frontend_tg.arn
@@ -308,6 +316,14 @@ resource "aws_vpc_security_group_ingress_rule" "alb_frontend_http_ipv4" {
   from_port         = 80
   ip_protocol       = "tcp"
   to_port           = 80
+}
+
+resource "aws_vpc_security_group_ingress_rule" "alb_frontend_ssh" {
+  security_group_id = aws_security_group.frontend_alb_sg.id
+  cidr_ipv4         = var.public_cidr_ipv4
+  from_port         = 22
+  ip_protocol       = "tcp"
+  to_port           = 22
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_frontend_allow_all_traffic_ipv4" {
@@ -366,10 +382,10 @@ resource "aws_launch_template" "backend_lt" {
     }
   }
 
-  user_data = templatefile("${path.module}/scripts/backend.sh", {
+  user_data = base64encode(templatefile("${path.module}/scripts/backend.sh", {
     git_private_key = file("keys/backend_keys.txt")
 	backend_env = file("keys/backend_env.txt")
-  })
+  }))
 }
 
 
@@ -411,6 +427,18 @@ resource "aws_autoscaling_group" "backend_asg" {
     launch_template {
         id = aws_launch_template.backend_lt.id
         version = "$Latest"
+    }
+
+    instance_refresh {
+      strategy = "Rolling"
+      
+      preferences {
+        min_healthy_percentage = 50
+      }
+
+      triggers = [
+        "launch_template"
+      ]
     }
 }
 

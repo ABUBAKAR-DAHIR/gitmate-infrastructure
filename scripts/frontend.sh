@@ -87,7 +87,7 @@ server {
     server_name _;
 
     location /api/ {
-        proxy_pass http://10.0.2.10:5000;
+        proxy_pass http://${backend_alb_domain};
 
         proxy_http_version 1.1;
 
