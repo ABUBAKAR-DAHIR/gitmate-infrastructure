@@ -359,9 +359,30 @@ resource "aws_lb_listener" "frontend_alb_listener" {
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
+    type             = "redirect"
+    # target_group_arn = aws_lb_target_group.frontend_tg.arn
+
+    redirect {
+      port = "443"
+      protocol = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+# Frontend HTTPS ALB listener
+resource "aws_lb_listener" "frontend_alb_listener_https" {
+  load_balancer_arn = aws_lb.frontend_alb.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  
+  certificate_arn = var.domain_arn
+#   ssl_policy = 
+
+  default_action {
+    type = "forward"
     target_group_arn = aws_lb_target_group.frontend_tg.arn
   }
+
 }
 
 
@@ -507,3 +528,84 @@ resource "aws_lb_listener" "backend_alb_listener" {
   }
 }
 
+
+
+# #  DNS
+# resource "aws_acm_certificate" "gitmate" {
+#   domain_name       = "gitmate.net"
+#   validation_method = "DNS"
+
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+
+#   tags = {
+#     Name = "gitmate.net"
+#   }
+# }
+
+# resource "aws_acm_certificate" "cert" {
+#   domain_name       = var.domain_name
+#   validation_method = "DNS"
+
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+
+#   tags = {
+#     Name = var.domain_name
+#   }
+# }
+
+
+# # ROUTE 53 validation
+# data "aws_route53_zone" "gitmate" {
+#   name         = "gitmate.net"
+#   private_zone = false
+# }
+
+# resource "aws_route53_record" "gitmate_cert_validation" {
+#   for_each = {
+#     for dvo in aws_acm_certificate.gitmate.domain_validation_options :
+#     dvo.domain_name => {
+#       name   = dvo.resource_record_name
+#       record = dvo.resource_record_value
+#       type   = dvo.resource_record_type
+#     }
+#   }
+
+#   zone_id = data.aws_route53_zone.gitmate.zone_id
+
+#   name    = each.value.name
+#   type    = each.value.type
+#   records = [each.value.record]
+#   ttl     = 60
+# }
+
+# resource "aws_acm_certificate_validation" "gitmate" {
+#   certificate_arn = aws_acm_certificate.gitmate.arn
+
+#   validation_record_fqdns = [
+#     for record in aws_route53_record.gitmate_cert_validation :
+#     record.fqdn
+#   ]
+# }
+
+# resource "aws_lb_listener" "frontend_alb_listener_https" {
+#   load_balancer_arn = aws_lb.frontend_alb.arn
+
+#   port     = 443
+#   protocol = "HTTPS"
+
+#   certificate_arn = aws_acm_certificate_validation.gitmate.certificate_arn
+
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.frontend_tg.arn
+#   }
+# }
+
+# data "aws_acm_certificate" "gitmate" {
+#     arn = var.domain_arn
+#     domain = var.domain_name
+# }

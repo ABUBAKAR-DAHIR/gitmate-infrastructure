@@ -222,3 +222,13 @@ variable "backend_alb" {
   type = string
   description = "Backend ALB"
 }
+
+variable "domain_name" {
+  type = string
+  description = "Domain Name"
+}
+
+variable "domain_arn" {
+  type = string
+  description = "Domain arn"
+}

@@ -53,5 +53,6 @@ backend_alb_sg_tag_name = "backend-alb-sg"
 backend_tg = "backend-tg"
 backend_alb = "backend-alb"
 
-
+domain_name = "gitmate.org"
+domain_arn = "arn:aws:acm:ap-south-1:607856468773:certificate/088eb77a-0dcd-4f8e-9776-bbc7495a0c9e"
 
